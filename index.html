@@ -26,7 +26,7 @@ body{font-family:'Noto Sans KR',sans-serif;color:#1a1a18;font-size:14px}
 
 /* ── 헤더 ── */
 .header{background:#fff;border-bottom:1px solid #E4E2DC;position:sticky;top:0;z-index:30;box-shadow:0 1px 3px rgba(0,0,0,.04)}
-.header-top{display:flex;align-items:center;gap:10px;padding:14px 20px 10px}
+.header-inner{max-width:1200px;margin:0 auto}.header-top{display:flex;align-items:center;gap:10px;padding:14px 20px 10px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--blue);flex-shrink:0}
 .brand-text{font-size:16px;font-weight:600;color:#1a1a18;letter-spacing:-.01em}
 .nav{display:flex;padding:0 16px;gap:2px;border-top:1px solid #F0EFEC}
@@ -82,8 +82,8 @@ body{font-family:'Noto Sans KR',sans-serif;color:#1a1a18;font-size:14px}
 .tscr{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
 thead{background:#F9F9F8}
-th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6B6966;padding:10px 12px;text-align:left;border-bottom:1px solid #E4E2DC;white-space:nowrap}
-td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid #F0EFEC}
+th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6B6966;padding:10px 12px;text-align:left;border-bottom:1px solid #E4E2DC;border-right:1px solid #E4E2DC;white-space:nowrap}th:last-child{border-right:none}
+td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid #F0EFEC;border-right:1px solid #F0EFEC}#otb td:last-child{border-right:none}
 #otb tr:last-child td{border-bottom:none}
 #otb tr:hover td{background:#FAFAF9}
 #otb tr.chg td{background:#FFFBEB!important}
@@ -134,9 +134,9 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
 .btn-ca:hover{background:#F2F1EE}
 
 .ct{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
-.ct th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6B6966;padding:9px 14px;text-align:left;background:#F9F9F8;border-bottom:1px solid #E4E2DC}
-.ct td{padding:9px 14px;vertical-align:middle;border-bottom:none}
-.ct tr.grp-end td{border-bottom:1px solid #D0CEC8}
+.ct th{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#6B6966;padding:9px 14px;text-align:left;background:#F9F9F8;border-bottom:1px solid #E4E2DC;border-right:1px solid #E4E2DC}.ct th:last-child{border-right:none}
+.ct td{padding:9px 14px;vertical-align:middle;border-bottom:1px solid #EBEBEA;border-right:1px solid #F0EFEC}.ct td:last-child{border-right:none}
+.ct tr.grp-end td{border-bottom:2px solid #C0BEB8}
 .ct tr.qty2 td{background:var(--pink-row)}
 .ct tr.qty2:hover td{background:#FFE4EC!important}
 .ct tr:not(.qty2):hover td{background:#FAFAF9}
@@ -156,6 +156,7 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
 <body>
 
 <div class="header">
+  <div class="header-inner">
   <div class="header-top">
     <div class="dot"></div>
     <span class="brand-text">굳뉴스몰 발주관리</span>
@@ -165,6 +166,7 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
     <button class="nt" id="t-orders" onclick="go('orders')"><i class="ti ti-file-description"></i>발주서<span class="pill" id="pl">0</span></button>
     <button class="nt" id="t-cls" onclick="go('cls')"><i class="ti ti-layout-list"></i>분류</button>
   </nav>
+  </div>
 </div>
 
 <!-- HOME -->
@@ -502,8 +504,7 @@ function renderCls() {
           <th style="width:48px;text-align:center">수량</th>
           <th style="width:85px">수령인</th>
           <th style="width:114px">연락처</th>
-          <th>배송지</th>
-          <th style="width:100px">배송메시지</th>
+          <th style="width:110px">배송메시지</th>
           <th style="width:68px"></th>
         </tr></thead>
         <tbody>${buildVRows(vorders, noList)}</tbody>
@@ -529,8 +530,7 @@ function renderCls() {
           <th style="width:48px;text-align:center">수량</th>
           <th style="width:85px">수령인</th>
           <th style="width:114px">연락처</th>
-          <th>배송지</th>
-          <th style="width:100px">배송메시지</th>
+          <th style="width:110px">배송메시지</th>
           <th style="width:88px;text-align:right">결제금액</th>
         </tr></thead>
         <tbody>${buildDRows(groups)}</tbody>
@@ -556,7 +556,6 @@ function buildVRows(vorders, noList) {
         <td style="text-align:center;font-weight:600">${qty}</td>
         <td>${ii === 0 ? `<div class="rcv-wrap"><span style="font-size:13px">${o.rcv}</span><span class="rcv-cnt">(${totalQty})</span></div>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
-        <td>${ii === 0 ? `<div class="addr2">${o.addr}</div>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<button class="btn-cr" id="cr-${o.id}" onclick="copyRow(${o.id},'${no}')"><i class="ti ti-copy" style="font-size:11px"></i>복사</button>` : ''}</td>
       </tr>`;
@@ -598,7 +597,6 @@ function buildDRows(groups) {
         <td style="text-align:center;font-weight:600">${qty}</td>
         <td>${ii === 0 ? `<div class="rcv-wrap"><span style="font-size:13px">${o.rcv}</span><span class="rcv-cnt">(${totalQty})</span></div>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
-        <td>${ii === 0 ? `<div class="addr2">${o.addr}</div>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<span class="${amtCls}">${amtStr}</span>` : ''}</td>
       </tr>`;
@@ -706,7 +704,7 @@ function printDirect() {
       : amt >= 500000
         ? 'color:#1A6FD4;font-weight:700'
         : '';
-    const totalQty = g.items.reduce((a, o) => a + parseInt(o.qty || 1), 0);
+    const itemCount = g.items.length;
     g.items.forEach((o, ii) => {
       const qty = parseInt(o.qty || 1);
       const isLastRow = ii === g.items.length - 1;
@@ -718,7 +716,7 @@ function printDirect() {
         <td style="text-align:center;border-bottom:${borderBottom}">${ii === 0 ? gi + 1 : ''}</td>
         <td style="border-bottom:${borderBottom}">${o.prod}${!o.bundle ? ' <b style="color:#5B21B6">[개별]</b>' : ''}</td>
         <td style="text-align:center;border-bottom:${borderBottom}">${qty}</td>
-        <td style="border-bottom:${borderBottom}">${ii === 0 ? `${o.rcv} (${totalQty})` : ''}</td>
+        <td style="border-bottom:${borderBottom}">${ii === 0 ? `${o.rcv} (${itemCount})` : ''}</td>
         <td style="border-bottom:${borderBottom}">${ii === 0 ? o.phone : ''}</td>
         <td style="text-align:right;border-bottom:${borderBottom}">${ii === 0 ? `<span style="${amtStyle}">${amtStr}</span>` : ''}</td>
       </tr>`;
