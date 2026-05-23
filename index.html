@@ -500,11 +500,11 @@ function renderCls() {
       <table class="ct">
         <thead><tr>
           <th style="width:36px">No.</th>
-          <th>주문상품명</th>
+          <th style="width:35%">주문상품명</th>
           <th style="width:48px;text-align:center">수량</th>
-          <th style="width:85px">수령인</th>
-          <th style="width:114px">연락처</th>
-          <th style="width:110px">배송메시지</th>
+          <th style="width:90px">수령인</th>
+          <th style="width:120px">연락처</th>
+          <th style="width:120px">배송메시지</th>
           <th style="width:68px"></th>
         </tr></thead>
         <tbody>${buildVRows(vorders, noList)}</tbody>
@@ -526,11 +526,11 @@ function renderCls() {
       <table class="ct">
         <thead><tr>
           <th style="width:36px">No.</th>
-          <th>주문상품명</th>
+          <th style="width:35%">주문상품명</th>
           <th style="width:48px;text-align:center">수량</th>
-          <th style="width:85px">수령인</th>
-          <th style="width:114px">연락처</th>
-          <th style="width:110px">배송메시지</th>
+          <th style="width:90px">수령인</th>
+          <th style="width:120px">연락처</th>
+          <th style="width:120px">배송메시지</th>
           <th style="width:88px;text-align:right">결제금액</th>
         </tr></thead>
         <tbody>${buildDRows(groups)}</tbody>
@@ -545,7 +545,6 @@ function buildVRows(vorders, noList) {
   let html = '';
   noList.forEach((no, ni) => {
     const items = vorders.filter(o => o.no === no);
-    const totalQty = items.reduce((a, o) => a + parseInt(o.qty || 1), 0);
     const isLast = ni === noList.length - 1;
     items.forEach((o, ii) => {
       const qty = parseInt(o.qty || 1);
@@ -554,7 +553,7 @@ function buildVRows(vorders, noList) {
         <td style="text-align:center;font-size:12px;color:#A09E97">${ii === 0 ? ni + 1 : ''}</td>
         <td><div class="pname">${o.prod}</div></td>
         <td style="text-align:center;font-weight:600">${qty}</td>
-        <td>${ii === 0 ? `<div class="rcv-wrap"><span style="font-size:13px">${o.rcv}</span><span class="rcv-cnt">(${totalQty})</span></div>` : ''}</td>
+        <td>${ii === 0 ? `<span style="font-size:13px">${o.rcv}</span>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<button class="btn-cr" id="cr-${o.id}" onclick="copyRow(${o.id},'${no}')"><i class="ti ti-copy" style="font-size:11px"></i>복사</button>` : ''}</td>
@@ -584,7 +583,6 @@ function buildDRows(groups) {
     const amt = parseFloat(g.items[0].amt) || 0;
     const amtStr = amt ? amt.toLocaleString('ko-KR') + '원' : '—';
     const amtCls = amt >= 1000000 ? 'amt-hi' : amt >= 500000 ? 'amt-md' : '';
-    const totalQty = g.items.reduce((a, o) => a + parseInt(o.qty || 1), 0);
     g.items.forEach((o, ii) => {
       const qty = parseInt(o.qty || 1);
       const cls = [qty >= 2 ? 'qty2' : '', ii === g.items.length - 1 && !isLast ? 'grp-end' : ''].filter(Boolean).join(' ');
@@ -595,7 +593,7 @@ function buildDRows(groups) {
           ${!o.bundle ? '<span class="dj-badge">개별배송</span>' : ''}
         </td>
         <td style="text-align:center;font-weight:600">${qty}</td>
-        <td>${ii === 0 ? `<div class="rcv-wrap"><span style="font-size:13px">${o.rcv}</span><span class="rcv-cnt">(${totalQty})</span></div>` : ''}</td>
+        <td>${ii === 0 ? `<span style="font-size:13px">${o.rcv}</span>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<span class="${amtCls}">${amtStr}</span>` : ''}</td>
@@ -716,7 +714,7 @@ function printDirect() {
         <td style="text-align:center;border-bottom:${borderBottom}">${ii === 0 ? gi + 1 : ''}</td>
         <td style="border-bottom:${borderBottom}">${o.prod}${!o.bundle ? ' <b style="color:#5B21B6">[개별]</b>' : ''}</td>
         <td style="text-align:center;border-bottom:${borderBottom}">${qty}</td>
-        <td style="border-bottom:${borderBottom}">${ii === 0 ? `${o.rcv} (${itemCount})` : ''}</td>
+        <td style="border-bottom:${borderBottom}">${ii === 0 ? `${o.rcv}${itemCount > 1 ? ` <span style="display:inline-flex;align-items:center;gap:2px;font-size:10px;color:#555;background:#F2F1EE;border:0.5px solid #C8C6C0;border-radius:4px;padding:1px 6px;margin-left:5px;font-weight:500">▦ ${itemCount}종</span>` : ''}` : ''}</td>
         <td style="border-bottom:${borderBottom}">${ii === 0 ? o.phone : ''}</td>
         <td style="text-align:right;border-bottom:${borderBottom}">${ii === 0 ? `<span style="${amtStyle}">${amtStr}</span>` : ''}</td>
       </tr>`;
