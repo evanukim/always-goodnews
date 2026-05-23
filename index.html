@@ -366,7 +366,7 @@ function ingest(rows, name) {
     no: idx('주문번호'), cat: idx('자체분류'), trd: idx('트랜드 이름'),
     prod: idx('주문상품명(옵션포함)'), qty: idx('수량'),
     rcv: idx('수령인'), phone: idx('수령인 휴대전화'),
-    zip: idx('수령인 우편번호'), addr: idx('수령인 주소'),
+    zip: idx('수령인 우편번호'), addr: (() => { let i = idx('수령인 주소(전체)'); return i >= 0 ? i : idx('수령인 주소'); })(),
     msg: idx('배송메시지'), amt: idx('총 실결제금액(최초정보) (KRW)')
   };
   orders = rows.slice(1).filter(r => r[I.no]).map((r, i) => {
@@ -551,11 +551,12 @@ function renderCls() {
       <table class="ct">
         <thead><tr>
           <th style="width:36px">No.</th>
-          <th style="width:35%">주문상품명</th>
+          <th style="width:28%">주문상품명</th>
           <th style="width:48px;text-align:center">수량</th>
-          <th style="width:90px">수령인</th>
-          <th style="width:120px">연락처</th>
-          <th style="width:120px">배송메시지</th>
+          <th style="width:80px">수령인</th>
+          <th style="width:108px">연락처</th>
+          <th>배송지</th>
+          <th style="width:108px">배송메시지</th>
           <th style="width:68px"></th>
         </tr></thead>
         <tbody>${buildVRows(vorders, noList)}</tbody>
@@ -577,11 +578,12 @@ function renderCls() {
       <table class="ct">
         <thead><tr>
           <th style="width:36px">No.</th>
-          <th style="width:35%">주문상품명</th>
+          <th style="width:28%">주문상품명</th>
           <th style="width:48px;text-align:center">수량</th>
-          <th style="width:90px">수령인</th>
-          <th style="width:120px">연락처</th>
-          <th style="width:120px">배송메시지</th>
+          <th style="width:80px">수령인</th>
+          <th style="width:108px">연락처</th>
+          <th>배송지</th>
+          <th style="width:108px">배송메시지</th>
           <th style="width:88px;text-align:right">결제금액</th>
         </tr></thead>
         <tbody>${buildDRows(groups)}</tbody>
@@ -606,6 +608,7 @@ function buildVRows(vorders, noList) {
         <td style="text-align:center;font-weight:600">${qty}</td>
         <td>${ii === 0 ? `<span style="font-size:13px">${o.rcv}</span>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
+        <td>${ii === 0 ? `<div class="addr2">${o.addr}</div>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<button class="btn-cr" id="cr-${o.id}" onclick="copyRow(${o.id},'${no}')"><i class="ti ti-copy" style="font-size:11px"></i>복사</button>` : ''}</td>
       </tr>`;
@@ -646,6 +649,7 @@ function buildDRows(groups) {
         <td style="text-align:center;font-weight:600">${qty}</td>
         <td>${ii === 0 ? `<span style="font-size:13px">${o.rcv}</span>` : ''}</td>
         <td>${ii === 0 ? `<span class="mono" style="font-size:12px">${o.phone}</span>` : ''}</td>
+        <td>${ii === 0 ? `<div class="addr2">${o.addr}</div>` : ''}</td>
         <td>${ii === 0 ? `<div class="msg-cell">${o.msg || '—'}</div>` : ''}</td>
         <td style="text-align:right">${ii === 0 ? `<span class="${amtCls}">${amtStr}</span>` : ''}</td>
       </tr>`;
