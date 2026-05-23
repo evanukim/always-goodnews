@@ -846,10 +846,20 @@ function readShipFile(f) {
       });
       if (rows.length < 2) { alert('데이터가 없습니다.'); return; }
       const h = rows[0];
-      const iNo = h.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
-      const iWb = h.findIndex(c => c.includes('운송장'));
-      if (iNo < 0 || iWb < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
-      shipRows = rows.slice(1).filter(r => r[iNo] && r[iWb]).map(r => ({ no: r[iNo].trim(), wb: r[iWb].trim() }));
+      let hRowIdx2 = -1, iNo = -1, iWb = -1;
+      for (let ri = 0; ri < Math.min(rows.length, 10); ri++) {
+        const row = rows[ri];
+        const tNo = row.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
+        const tWb = row.findIndex(c => c.includes('운송장'));
+        if (tNo >= 0 && tWb >= 0) { hRowIdx2 = ri; iNo = tNo; iWb = tWb; break; }
+      }
+      if (hRowIdx2 < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
+      const hVal2 = rows[hRowIdx2][iNo] || '';
+      shipRows = rows.slice(hRowIdx2 + 1).filter(r => {
+        const noVal = (r[iNo] || '').trim();
+        const wbVal = (r[iWb] || '').trim();
+        return noVal && wbVal && noVal !== hVal2 && !noVal.includes('주문번호');
+      }).map(r => ({ no: r[iNo].trim(), wb: r[iWb].trim() }));
       renderShip();
     };
     reader.readAsText(f, 'UTF-8');
@@ -859,11 +869,23 @@ function readShipFile(f) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
       if (data.length < 2) { alert('데이터가 없습니다.'); return; }
-      const h = data[0].map(String);
-      const iNo = h.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
-      const iWb = h.findIndex(c => c.includes('운송장'));
-      if (iNo < 0 || iWb < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
-      shipRows = data.slice(1).filter(r => r[iNo] && r[iWb]).map(r => ({ no: String(r[iNo]).trim(), wb: String(r[iWb]).trim() }));
+      // 헤더 행 자동 탐색: 주문번호 또는 운송장 포함한 행 찾기
+      let hRowIdx = -1;
+      let iNo = -1, iWb = -1;
+      for (let ri = 0; ri < Math.min(data.length, 10); ri++) {
+        const row = data[ri].map(v => String(v || ''));
+        const tNo = row.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
+        const tWb = row.findIndex(c => c.includes('운송장'));
+        if (tNo >= 0 && tWb >= 0) { hRowIdx = ri; iNo = tNo; iWb = tWb; break; }
+      }
+      if (hRowIdx < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
+      // 헤더가 연속으로 반복되는 행 건너뛰기
+      const hVal = String(data[hRowIdx][iNo] || '');
+      shipRows = data.slice(hRowIdx + 1).filter(r => {
+        const noVal = String(r[iNo] || '').trim();
+        const wbVal = String(r[iWb] || '').trim();
+        return noVal && wbVal && noVal !== hVal && !noVal.includes('주문번호');
+      }).map(r => ({ no: String(r[iNo]).trim(), wb: String(r[iWb]).trim() }));
       renderShip();
     };
     reader.readAsArrayBuffer(f);
