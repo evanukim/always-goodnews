@@ -308,6 +308,49 @@ const VCOLS = ['#7C3AED','#0369A1','#B45309','#047857','#BE123C','#6D28D9','#0F7
 const vcol = n => VCOLS[[...n].reduce((a,c) => a + c.charCodeAt(0), 0) % VCOLS.length];
 const isBundlable = trd => trd !== 'T00000DJ';
 
+/* ══ localStorage 영속화 ══ */
+const LS_KEY = 'gnm_files_v1';
+const MAX_DAYS = 7;
+
+function saveToStorage() {
+  try {
+    // 7일 이내 파일만 보관
+    const cutoff = Date.now() - MAX_DAYS * 86400000;
+    const toSave = files.map((f, i) => ({
+      name: f.name,
+      date: f.date,
+      ts: f.ts || Date.now(),
+      cnt: f.cnt,
+      orders: i === 0 ? orders : f.orders || []
+    })).filter(f => f.ts >= cutoff);
+    localStorage.setItem(LS_KEY, JSON.stringify(toSave));
+  } catch(e) { console.warn('저장 실패:', e); }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    const cutoff = Date.now() - MAX_DAYS * 86400000;
+    const saved = JSON.parse(raw).filter(f => (f.ts || 0) >= cutoff);
+    if (!saved.length) return;
+    files = saved.map(f => ({ name: f.name, date: f.date, ts: f.ts, cnt: f.cnt, orders: f.orders || [] }));
+    // 가장 최근 파일(0번)을 현재 orders로 복원
+    if (files.length > 0 && files[0].orders.length > 0) {
+      orders = files[0].orders;
+      orders.forEach(o => { o._ch = false; });
+      changed.clear();
+      // vendorNames 복원
+      orders.filter(o => o.type === '위탁' && o.vendor).forEach(o => vendorNames.add(o.vendor));
+      updVDL();
+    }
+    renderFiles();
+    renderOrders();
+    document.getElementById('pl').textContent = orders.length;
+  } catch(e) { console.warn('불러오기 실패:', e); }
+}
+
+
 /* ── 탭 전환 ── */
 function go(pg) {
   document.querySelectorAll('.pg').forEach(p => p.classList.remove('on'));
@@ -387,9 +430,10 @@ function ingest(rows, name) {
     };
   });
   changed.clear();
-  files.unshift({ name, date: new Date().toLocaleString('ko-KR'), cnt: orders.length });
+  files.unshift({ name, date: new Date().toLocaleString('ko-KR'), ts: Date.now(), cnt: orders.length, orders: JSON.parse(JSON.stringify(orders)) });
   updVDL(); renderFiles(); renderOrders();
   document.getElementById('pl').textContent = orders.length;
+  saveToStorage();
   go('orders');
 }
 
@@ -419,14 +463,27 @@ function renderFiles() {
 }
 function selFile(i) {
   document.querySelectorAll('.fcard').forEach((el, j) => el.classList.toggle('sel', j === i));
+  // 선택한 파일의 orders 복원
+  if (files[i] && files[i].orders) {
+    orders = files[i].orders;
+    orders.forEach(o => { o._ch = false; });
+    changed.clear();
+    vendorNames.clear();
+    orders.filter(o => o.type === '위탁' && o.vendor).forEach(o => vendorNames.add(o.vendor));
+    updVDL();
+  }
   go('orders');
 }
 function delFile(i) {
   if (!confirm('이 파일 데이터를 삭제할까요?')) return;
   files.splice(i, 1);
-  if (i === 0) { orders = []; changed.clear(); }
+  if (i === 0) {
+    orders = files.length > 0 ? (files[0].orders || []) : [];
+    changed.clear();
+  }
   renderFiles(); renderOrders();
   document.getElementById('pl').textContent = orders.length;
+  saveToStorage();
 }
 
 /* ── 발주서 ── */
@@ -485,7 +542,9 @@ function setType(id, type) {
   o.type = type;
   if (type === '직접배송') o.vendor = '';
   else if (!o.vendor) o.vendor = o.origCat !== '직접배송' ? o.origCat : '';
-  o._ch = true; changed.add(id); updStats(); renderRows(); updNotice();
+  o._ch = true; changed.add(id);
+  if (files.length > 0) files[0].orders = JSON.parse(JSON.stringify(orders));
+  saveToStorage(); updStats(); renderRows(); updNotice();
 }
 function setVendor(id, val) {
   const o = orders.find(x => x.id === id);
@@ -930,8 +989,8 @@ function shipDownload() {
 }
 
 /* 초기화 */
-renderFiles();
-renderOrders();
+loadFromStorage();
+if (!files.length) { renderFiles(); renderOrders(); }
 </script>
 </body>
 </html>
