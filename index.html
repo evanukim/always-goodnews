@@ -676,7 +676,6 @@ function downloadXlsx() {
   const fileName = files.length ? files[0].name.replace(/\.csv$/, '') : 'goodnewshvacc';
   const wb = XLSX.utils.book_new();
   const wsData = [
-    [fileName, '', '', '', '', '', '', ''],
     ['수령인', '수령인 휴대전화', '수령인 주소(전체)', '주문상품명', '상품옵션', '수량', '배송메시지', '주문번호'],
     ...rows.map(r => [r.rcv, r.phone, r.addr, r.prodName, r.option, r.qty, r.msg, r.no])
   ];
@@ -686,7 +685,7 @@ function downloadXlsx() {
     { wch: 55 }, { wch: 40 }, { wch: 6 },
     { wch: 25 }, { wch: 18 }
   ];
-  ws['!rows'] = [{ hpx: 28 }, { hpx: 22 }];
+  ws['!rows'] = [{ hpx: 22 }];
   XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
   XLSX.writeFile(wb, `${fileName}_택배출력.xlsx`);
 }
@@ -696,28 +695,32 @@ function printDirect() {
   const directOrders = orders.filter(o => o.type === '직접배송');
   if (!directOrders.length) { alert('직접배송 주문이 없습니다.'); return; }
   const { groups } = buildDGroups(directOrders);
-  const total = directOrders.length;
-  const a100 = groups.filter(g => (parseFloat(g.items[0].amt) || 0) >= 1000000).length;
-  const a50 = groups.filter(g => { const a = parseFloat(g.items[0].amt) || 0; return a >= 500000 && a < 1000000; }).length;
 
   let rows = '';
   groups.forEach((g, gi) => {
+    const isLastGroup = gi === groups.length - 1;
     const amt = parseFloat(g.items[0].amt) || 0;
     const amtStr = amt ? amt.toLocaleString('ko-KR') + '원' : '—';
-    const amtCls = amt >= 1000000 ? 'hi' : amt >= 500000 ? 'md' : '';
+    const amtStyle = amt >= 1000000
+      ? 'color:#DC2626;font-weight:700'
+      : amt >= 500000
+        ? 'color:#1A6FD4;font-weight:700'
+        : '';
     const totalQty = g.items.reduce((a, o) => a + parseInt(o.qty || 1), 0);
     g.items.forEach((o, ii) => {
       const qty = parseInt(o.qty || 1);
-      const isMul = g.items.length > 1;
-      rows += `<tr class="${isMul ? 'mul' : ''}">
-        <td style="text-align:center">${ii === 0 ? gi + 1 : ''}</td>
-        <td>${o.prod}${!o.bundle ? ' <b style="color:#5B21B6">[개별]</b>' : ''}</td>
-        <td style="text-align:center">${qty}</td>
-        <td>${ii === 0 ? `${o.rcv} (${totalQty})` : ''}</td>
-        <td>${ii === 0 ? o.phone : ''}</td>
-        <td>${ii === 0 ? o.addr : ''}</td>
-        <td>${ii === 0 ? o.msg || '' : ''}</td>
-        <td style="text-align:right">${ii === 0 ? `<span class="${amtCls}">${amtStr}</span>` : ''}</td>
+      const isLastRow = ii === g.items.length - 1;
+      const borderBottom = isLastRow
+        ? (isLastGroup ? '2px solid #888' : '2px solid #888')
+        : '1px solid #ddd';
+      const rowBg = qty >= 2 ? 'background:#FFF0F3' : '';
+      rows += `<tr style="${rowBg}">
+        <td style="text-align:center;border-bottom:${borderBottom}">${ii === 0 ? gi + 1 : ''}</td>
+        <td style="border-bottom:${borderBottom}">${o.prod}${!o.bundle ? ' <b style="color:#5B21B6">[개별]</b>' : ''}</td>
+        <td style="text-align:center;border-bottom:${borderBottom}">${qty}</td>
+        <td style="border-bottom:${borderBottom}">${ii === 0 ? `${o.rcv} (${totalQty})` : ''}</td>
+        <td style="border-bottom:${borderBottom}">${ii === 0 ? o.phone : ''}</td>
+        <td style="text-align:right;border-bottom:${borderBottom}">${ii === 0 ? `<span style="${amtStyle}">${amtStr}</span>` : ''}</td>
       </tr>`;
     });
   });
@@ -730,28 +733,13 @@ function printDirect() {
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Noto Sans KR',sans-serif;padding:24px;color:#111;font-size:12px}
 h1{font-size:17px;font-weight:700;text-align:center;margin-bottom:16px;padding-bottom:10px;border-bottom:2px solid #000}
-.summary{display:flex;border:1px solid #ddd;border-radius:6px;overflow:hidden;margin-bottom:16px}
-.s-item{flex:1;padding:9px 12px;border-right:1px solid #ddd;text-align:center}
-.s-item:last-child{border-right:none}
-.s-label{font-size:11px;color:#666;margin-bottom:3px}
-.s-val{font-size:16px;font-weight:700}
-.s-val.hi{color:#DC2626}.s-val.md{color:#B45309}
 .sec-h{font-size:13px;font-weight:700;background:#f0f0f0;padding:7px 10px;border:1px solid #ccc;border-bottom:none}
 table{width:100%;border-collapse:collapse}
 th{padding:7px 8px;border:1px solid #ccc;background:#f8f8f8;font-weight:600;text-align:left;font-size:11px}
-td{padding:6px 8px;border-left:1px solid #ccc;border-right:1px solid #ccc;border-top:none;border-bottom:none;font-size:12px;vertical-align:middle}
-tr.grp-end td,tr:last-child td{border-bottom:1px solid #ccc}
-tr.mul td{background:#FFF9C4}
-.hi{color:#DC2626;font-weight:700}.md{color:#B45309;font-weight:700}
+td{padding:6px 8px;border-left:1px solid #ccc;border-right:1px solid #ccc;border-top:none;font-size:12px;vertical-align:middle}
 @media print{body{padding:12px}}
 </style></head><body>
 <h1>직접배송 발주서</h1>
-<div class="summary">
-  <div class="s-item"><div class="s-label">총 주문</div><div class="s-val">${groups.length}건</div></div>
-  <div class="s-item"><div class="s-label">총 주문행</div><div class="s-val">${total}개</div></div>
-  <div class="s-item"><div class="s-label">100만원 이상</div><div class="s-val hi">${a100}건</div></div>
-  <div class="s-item"><div class="s-label">50만원 이상</div><div class="s-val md">${a50}건</div></div>
-</div>
 <div class="sec-h">직접배송 (${groups.length}건)</div>
 <table>
   <thead><tr>
@@ -760,8 +748,6 @@ tr.mul td{background:#FFF9C4}
     <th style="width:40px;text-align:center">수량</th>
     <th style="width:80px">수령인</th>
     <th style="width:108px">연락처</th>
-    <th>배송지</th>
-    <th style="width:90px">배송메시지</th>
     <th style="width:86px">결제금액</th>
   </tr></thead>
   <tbody>${rows}</tbody>
@@ -773,6 +759,7 @@ tr.mul td{background:#FFF9C4}
   if (w) { w.document.write(html); w.document.close(); }
   else alert('팝업 차단을 해제 후 다시 시도해 주세요.');
 }
+
 
 /* 초기화 */
 renderFiles();
