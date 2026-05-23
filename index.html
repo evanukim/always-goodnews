@@ -165,6 +165,7 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
     <button class="nt on" id="t-home" onclick="go('home')"><i class="ti ti-home"></i>홈</button>
     <button class="nt" id="t-orders" onclick="go('orders')"><i class="ti ti-file-description"></i>발주서<span class="pill" id="pl">0</span></button>
     <button class="nt" id="t-cls" onclick="go('cls')"><i class="ti ti-layout-list"></i>분류</button>
+    <button class="nt" id="t-ship" onclick="go('ship')"><i class="ti ti-truck-delivery"></i>발송처리</button>
   </nav>
   </div>
 </div>
@@ -248,6 +249,56 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
     <div id="cls-content"></div>
   </div>
 </div>
+
+<!-- 발송처리 -->
+<div class="pg" id="pg-ship">
+  <div class="cls-header">
+    <div class="cls-title-wrap">
+      <div class="cls-title">발송처리</div>
+      <div class="cls-sub">주문실적조회 파일을 업로드하면 쇼핑몰 발송처리용 파일을 생성합니다</div>
+    </div>
+  </div>
+
+  <!-- 업로드 영역 -->
+  <div class="drop-zone" id="ship-dz" style="padding:32px 24px;margin-bottom:20px"
+    ondragover="event.preventDefault();this.classList.add('over')"
+    ondragleave="this.classList.remove('over')"
+    ondrop="shipDrop(event)"
+    onclick="document.getElementById('ship-fi').click()">
+    <input type="file" id="ship-fi" accept=".xlsx,.xls,.csv" onchange="shipPick(event)">
+    <div class="di"><i class="ti ti-file-spreadsheet"></i></div>
+    <div class="dt">주문실적조회 파일 업로드</div>
+    <div class="ds">송장 인쇄 후 다운로드한 xlsx / xls / csv 파일을 올려주세요</div>
+    <button class="btn-up" onclick="event.stopPropagation();document.getElementById('ship-fi').click()">
+      <i class="ti ti-upload"></i>파일 선택
+    </button>
+  </div>
+
+  <!-- 결과 영역 -->
+  <div id="ship-result" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:15px;font-weight:600;color:#1a1a18" id="ship-title"></div>
+        <div style="font-size:12px;color:#6B6966;margin-top:3px" id="ship-sub"></div>
+      </div>
+      <button class="btn-print" onclick="shipDownload()">
+        <i class="ti ti-download"></i>발송처리 파일 다운로드
+      </button>
+    </div>
+
+    <div class="tbox"><div class="tscr">
+      <table>
+        <thead><tr>
+          <th style="width:44px;text-align:center">No.</th>
+          <th>주문번호</th>
+          <th>운송장번호</th>
+        </tr></thead>
+        <tbody id="ship-tb"></tbody>
+      </table>
+    </div></div>
+  </div>
+</div>
+
 
 <datalist id="vdl"></datalist>
 
@@ -609,7 +660,7 @@ function copyRow(id, no) {
   if (!o) return;
   const grp = orders.filter(x => x.no === no && x.type === '위탁' && x.vendor === o.vendor);
   const lines = grp.map(x => `${x.prod} (${x.qty}개)`).join('\n');
-  const txt = `${lines}\n${o.rcv}\n${o.phone}\n${o.addr}\n배송메시지 : ${o.msg || ''}`;
+  const txt = `${lines}\n${o.rcv}\n${o.phone}\n${o.addr}${o.msg ? `\n배송메시지 : ${o.msg}` : ``}`;
   navigator.clipboard.writeText(txt).then(() => {
     const btn = document.getElementById('cr-' + id);
     if (btn) {
@@ -626,7 +677,7 @@ function copyAll(vname, kId) {
     const items = vorders.filter(o => o.no === no);
     const lines = items.map(x => `${x.prod} (${x.qty}개)`).join('\n');
     const f = items[0];
-    return `${lines}\n${f.rcv}\n${f.phone}\n${f.addr}\n배송메시지 : ${f.msg || ''}`;
+    return `${lines}\n${f.rcv}\n${f.phone}\n${f.addr}${f.msg ? `\n배송메시지 : ${f.msg}` : ``}`;
   });
   navigator.clipboard.writeText(blocks.join('\n\n---\n\n')).then(() => {
     const btn = document.getElementById('ca-' + kId);
@@ -756,6 +807,101 @@ td{padding:6px 8px;border-left:1px solid #ccc;border-right:1px solid #ccc;border
   else alert('팝업 차단을 해제 후 다시 시도해 주세요.');
 }
 
+
+
+/* ══ 발송처리 탭 ══ */
+let shipRows = [];
+let shipFileName = '';
+
+function shipDrop(e) {
+  e.preventDefault();
+  document.getElementById('ship-dz').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) readShipFile(f);
+}
+function shipPick(e) {
+  const f = e.target.files[0];
+  if (f) readShipFile(f);
+  e.target.value = '';
+}
+
+function readShipFile(f) {
+  shipFileName = f.name;
+  const ext = f.name.split('.').pop().toLowerCase();
+  const reader = new FileReader();
+
+  if (ext === 'csv') {
+    reader.onload = ev => {
+      let txt = ev.target.result;
+      if (txt.charCodeAt(0) === 0xFEFF) txt = txt.slice(1);
+      const rows = txt.split('\n').filter(l => l.trim()).map(line => {
+        const cells = []; let cur = '', inQ = false;
+        for (let i = 0; i < line.length; i++) {
+          const ch = line[i];
+          if (ch === '"') { inQ = !inQ; }
+          else if (ch === ',' && !inQ) { cells.push(cur.trim()); cur = ''; }
+          else cur += ch;
+        }
+        cells.push(cur.trim()); return cells;
+      });
+      if (rows.length < 2) { alert('데이터가 없습니다.'); return; }
+      const h = rows[0];
+      const iNo = h.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
+      const iWb = h.findIndex(c => c.includes('운송장'));
+      if (iNo < 0 || iWb < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
+      shipRows = rows.slice(1).filter(r => r[iNo] && r[iWb]).map(r => ({ no: r[iNo].trim(), wb: r[iWb].trim() }));
+      renderShip();
+    };
+    reader.readAsText(f, 'UTF-8');
+  } else {
+    reader.onload = ev => {
+      const wb = XLSX.read(ev.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+      if (data.length < 2) { alert('데이터가 없습니다.'); return; }
+      const h = data[0].map(String);
+      const iNo = h.findIndex(c => c.includes('주문번호') && !c.includes('품목'));
+      const iWb = h.findIndex(c => c.includes('운송장'));
+      if (iNo < 0 || iWb < 0) { alert('주문번호 또는 운송장번호 컬럼을 찾을 수 없습니다.\n컬럼명을 확인해 주세요.'); return; }
+      shipRows = data.slice(1).filter(r => r[iNo] && r[iWb]).map(r => ({ no: String(r[iNo]).trim(), wb: String(r[iWb]).trim() }));
+      renderShip();
+    };
+    reader.readAsArrayBuffer(f);
+  }
+}
+
+function renderShip() {
+  if (!shipRows.length) { alert('추출된 데이터가 없습니다.'); return; }
+  document.getElementById('ship-title').textContent = shipFileName;
+  document.getElementById('ship-sub').textContent = `${shipRows.length}건의 주문번호 · 운송장번호 추출됨`;
+  const tb = document.getElementById('ship-tb');
+  tb.innerHTML = shipRows.map((r, i) => `
+    <tr>
+      <td style="text-align:center;font-size:12px;color:#A09E97">${i + 1}</td>
+      <td><span class="mono" style="font-size:12px">${r.no}</span></td>
+      <td><span class="mono" style="font-size:12px">${r.wb}</span></td>
+    </tr>`).join('');
+  document.getElementById('ship-result').style.display = 'block';
+}
+
+function shipDownload() {
+  if (!shipRows.length) return;
+  // 날짜 기반 파일명: 2026-05-23-발송(1)
+  const today = new Date();
+  const ymd = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const outName = `${ymd}-발송(1)`;
+
+  const wb = XLSX.utils.book_new();
+  const wsData = [
+    ['주문번호', '품목별 주문번호', '운송장번호', '수량'],
+    ...shipRows.map(r => [r.no, '', r.wb, ''])
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  ws['!cols'] = [{ wch: 22 }, { wch: 18 }, { wch: 18 }, { wch: 8 }];
+  ws['!rows'] = [{ hpx: 20 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+  XLSX.writeFile(wb, `${outName}.xlsx`);
+}
 
 /* 초기화 */
 renderFiles();
