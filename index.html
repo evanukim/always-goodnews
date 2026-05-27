@@ -977,14 +977,12 @@ function shipDownload() {
   const ymd = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const outName = `${ymd}-발송(1)`;
 
-  // CSV로 생성 (쇼핑몰 업로드 호환)
+  // CSV로 생성 — 따옴표 없이 (쇼핑몰 업로드 호환)
   const csvRows = [
     ['주문번호', '품목별 주문번호', '운송장번호', '수량'],
     ...shipRows.map(r => [r.no, '', r.wb, ''])
   ];
-  const csvContent = '\uFEFF' + csvRows.map(row =>
-    row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
-  ).join('\n');
+  const csvContent = csvRows.map(row => row.join(',')).join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
