@@ -759,26 +759,26 @@ function downloadXlsx() {
   const rows = [];
   const noSeen = {};
   directOrders.forEach(o => {
+    const qty = parseInt(o.qty || 1);
+    // 수량 앞에 붙이는 형식: "1개/상품명"
+    const prodWithQty = `${qty}개/${o.prod}`;
     if (!o.bundle) {
-      // 개별배송 → 그대로 1행
+      // 개별배송 → 그대로 1행, 수량은 공란
       rows.push({
         rcv: o.rcv, phone: o.phone, addr: o.addr,
-        prodName: o.prod, option: '',
-        qtyList: [parseInt(o.qty || 1)],
+        prodName: prodWithQty, option: '', qty: '',
         msg: o.msg || '', no: o.no
       });
     } else {
-      // 묶음배송 → 주문번호 기준, 상품명 # 구분, 수량 # 구분
+      // 묶음배송 → 주문번호 기준, "수량개/상품명" 형식으로 # 구분, 수량은 공란
       if (noSeen[o.no] !== undefined) {
         const r = rows[noSeen[o.no]];
-        r.prodName = r.prodName + '#' + o.prod;
-        r.qtyList.push(parseInt(o.qty || 1));
+        r.prodName = r.prodName + '#' + prodWithQty;
       } else {
         noSeen[o.no] = rows.length;
         rows.push({
           rcv: o.rcv, phone: o.phone, addr: o.addr,
-          prodName: o.prod, option: '',
-          qtyList: [parseInt(o.qty || 1)],
+          prodName: prodWithQty, option: '', qty: '',
           msg: o.msg || '', no: o.no
         });
       }
@@ -789,7 +789,7 @@ function downloadXlsx() {
   const wb = XLSX.utils.book_new();
   const wsData = [
     ['수령인', '수령인 휴대전화', '수령인 주소(전체)', '주문상품명', '상품옵션', '수량', '배송메시지', '주문번호'],
-    ...rows.map(r => [r.rcv, r.phone, r.addr, r.prodName, r.option, r.qtyList.join('#'), r.msg, r.no])
+    ...rows.map(r => [r.rcv, r.phone, r.addr, r.prodName, r.option, r.qty, r.msg, r.no])
   ];
   const ws = XLSX.utils.aoa_to_sheet(wsData);
   ws['!cols'] = [
