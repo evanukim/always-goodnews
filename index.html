@@ -166,6 +166,7 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
     <button class="nt" id="t-orders" onclick="go('orders')"><i class="ti ti-file-description"></i>발주서<span class="pill" id="pl">0</span></button>
     <button class="nt" id="t-cls" onclick="go('cls')"><i class="ti ti-layout-list"></i>분류</button>
     <button class="nt" id="t-ship" onclick="go('ship')"><i class="ti ti-truck-delivery"></i>발송처리</button>
+    <button class="nt" id="t-stat" onclick="go('stat')"><i class="ti ti-chart-bar"></i>통계</button>
   </nav>
   </div>
 </div>
@@ -237,14 +238,7 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
         <div class="cls-title">분류</div>
         <div class="cls-sub" id="cls-sub"></div>
       </div>
-      <div class="cls-btns">
-        <button class="btn-xlsx" onclick="downloadXlsx()">
-          <i class="ti ti-table-down"></i>택배출력 파일 다운로드
-        </button>
-        <button class="btn-print" onclick="printDirect()">
-          <i class="ti ti-printer"></i>직접배송 발주서 출력
-        </button>
-      </div>
+
     </div>
     <div id="cls-content"></div>
   </div>
@@ -296,6 +290,43 @@ td{padding:10px 12px;color:#1a1a18;vertical-align:middle;border-bottom:1px solid
         <tbody id="ship-tb"></tbody>
       </table>
     </div></div>
+  </div>
+</div>
+
+
+<!-- 통계 -->
+<div class="pg" id="pg-stat">
+  <div id="stat-empty" class="nodata"><i class="ti ti-file-upload"></i>홈에서 주문수집 파일을 업로드해 주세요</div>
+  <div id="stat-body" style="display:none">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px">
+      <div>
+        <div style="font-size:15px;font-weight:600;color:#1a1a18">통계</div>
+        <div style="font-size:12px;color:#6B6966;margin-top:3px" id="stat-sub"></div>
+      </div>
+    </div>
+
+    <!-- 요약 카드 -->
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+      <div class="sc"><div class="sc-l">전체 주문행</div><div class="sc-v" id="st-total">0</div></div>
+      <div class="sc"><div class="sc-l">총 주문 수량</div><div class="sc-v cb" id="st-qty">0</div></div>
+      <div class="sc"><div class="sc-l">상품 종류</div><div class="sc-v" id="st-kinds">0</div></div>
+    </div>
+
+    <!-- 품목별 수량 테이블 -->
+    <div class="tbox">
+      <div class="tscr">
+        <table>
+          <thead><tr>
+            <th style="width:44px;text-align:center">No.</th>
+            <th>상품명</th>
+            <th style="width:70px;text-align:center">주문 건수</th>
+            <th style="width:70px;text-align:center">총 수량</th>
+            <th style="width:120px">배송 유형</th>
+          </tr></thead>
+          <tbody id="stat-tb"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -359,6 +390,7 @@ function go(pg) {
   document.getElementById('pg-' + pg).classList.add('on');
   document.getElementById('t-' + pg).classList.add('on');
   if (pg === 'cls') renderCls();
+  if (pg === 'stat') renderStat();
 }
 
 /* ── 파일 업로드 ── */
@@ -432,6 +464,7 @@ function ingest(rows, name) {
   });
   changed.clear();
   files.unshift({ name, date: new Date().toLocaleString('ko-KR'), ts: Date.now(), cnt: orders.length, orders: JSON.parse(JSON.stringify(orders)) });
+  window._clsFilterProd = '';
   updVDL(); renderFiles(); renderOrders();
   document.getElementById('pl').textContent = orders.length;
   saveToStorage();
@@ -626,13 +659,60 @@ function renderCls() {
 
   /* 직접배송 */
   if (directOrders.length) {
-    const { groups } = buildDGroups(directOrders);
-    html += `<div class="vsec">
+    // 품목별 분류 드롭다운 목록 생성 (단품 주문만: 같은 주문번호에 1개 상품인 경우)
+    const singleItemOrders = directOrders.filter(o => {
+      const sameNo = directOrders.filter(x => x.no === o.no);
+      return sameNo.length === 1;
+    });
+    const prodSet = [...new Set(singleItemOrders.map(o => o.prod))].sort();
+
+    // 현재 선택된 품목
+    const selProd = window._clsFilterProd || '';
+
+    // 선택 품목이 있을 때: 해당 단품 수량 오름차순 먼저 → 나머지 기본 순서
+    let sortedDirect = directOrders;
+    if (selProd) {
+      const selected = singleItemOrders
+        .filter(o => o.prod === selProd)
+        .sort((a, b) => parseInt(a.qty || 1) - parseInt(b.qty || 1));
+      const selectedNos = new Set(selected.map(o => o.no));
+      const rest = directOrders.filter(o => !selectedNos.has(o.no));
+      sortedDirect = [...selected, ...rest];
+    }
+
+    const { groups } = buildDGroups(sortedDirect);
+    const selectedCount = selProd
+      ? singleItemOrders.filter(o => o.prod === selProd).length
+      : 0;
+    const prodOptions = prodSet.map(p =>
+      `<option value="${p.replace(/"/g,'&quot;')}" ${p === selProd ? 'selected' : ''}>${p}</option>`
+    ).join('');
+
+    html += `<div class="direct-ctrl" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+      <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:0">
+        <label style="font-size:12px;color:#6B6966;white-space:nowrap">품목별 분류</label>
+        <select id="cls-prod-sel" style="font-size:12px;padding:6px 10px;border:1px solid #D0CEC8;border-radius:6px;background:#fff;color:#1a1a18;flex:1;min-width:0;max-width:420px;cursor:pointer"
+          onchange="window._clsFilterProd=this.value; renderCls()">
+          <option value="">전체 (기본 순서)</option>
+          ${prodOptions}
+        </select>
+        ${selProd ? `<span style="font-size:12px;color:#1A6FD4;white-space:nowrap">${selectedCount}건 수량 오름차순 &nbsp;·&nbsp; 총 수량 ${singleItemOrders.filter(o=>o.prod===selProd).reduce((a,o)=>a+parseInt(o.qty||1),0)}개 &nbsp;→&nbsp; 나머지 ${groups.length - selectedCount}건</span>` : ''}
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0">
+        <button class="btn-xlsx" onclick="downloadXlsx()">
+          <i class="ti ti-table-down"></i>택배출력 파일 다운로드
+        </button>
+        <button class="btn-print" onclick="printDirect()">
+          <i class="ti ti-printer"></i>직접배송 발주서 출력
+        </button>
+      </div>
+    </div>
+    <div class="vsec">
       <div class="vhead direct-head">
         <div class="vnb">
           <div class="vdot" style="background:var(--blue)"></div>
           <span class="vname" style="color:var(--blue)">직접배송</span>
-          <span class="vstat" style="color:#2563EB">${groups.length}건 · ${directOrders.length}개 주문행</span>
+          <span class="vstat" style="color:#2563EB">${groups.length}건 · ${sortedDirect.length}개 주문행</span>
         </div>
       </div>
       <table class="ct">
@@ -652,6 +732,9 @@ function renderCls() {
   }
 
   document.getElementById('cls-content').innerHTML = html;
+  // 드롭다운 선택값 복원
+  const sel = document.getElementById('cls-prod-sel');
+  if (sel && window._clsFilterProd) sel.value = window._clsFilterProd;
 }
 
 function buildVRows(vorders, noList) {
@@ -754,8 +837,22 @@ function copyAll(vname, kId) {
 
 /* ══ 택배출력 XLSX 다운로드 ══ */
 function downloadXlsx() {
-  const directOrders = orders.filter(o => o.type === '직접배송');
-  if (!directOrders.length) { alert('직접배송 주문이 없습니다.'); return; }
+  const allDirect = orders.filter(o => o.type === '직접배송');
+  if (!allDirect.length) { alert('직접배송 주문이 없습니다.'); return; }
+
+  // 품목별 분류 선택 시 해당 단품 먼저, 나머지 뒤 순서 적용
+  const selProd = window._clsFilterProd || '';
+  let directOrders = allDirect;
+  if (selProd) {
+    const singleNos = new Set(
+      allDirect.filter(o => allDirect.filter(x => x.no === o.no).length === 1 && o.prod === selProd).map(o => o.no)
+    );
+    const selected = allDirect
+      .filter(o => singleNos.has(o.no))
+      .sort((a, b) => parseInt(a.qty || 1) - parseInt(b.qty || 1));
+    const rest = allDirect.filter(o => !singleNos.has(o.no));
+    directOrders = [...selected, ...rest];
+  }
 
   const rows = [];
   const noSeen = {};
@@ -814,8 +911,19 @@ function downloadXlsx() {
 
 /* ══ 직접배송 발주서 출력 ══ */
 function printDirect() {
-  const directOrders = orders.filter(o => o.type === '직접배송');
-  if (!directOrders.length) { alert('직접배송 주문이 없습니다.'); return; }
+  const allDirect = orders.filter(o => o.type === '직접배송');
+  if (!allDirect.length) { alert('직접배송 주문이 없습니다.'); return; }
+
+  // 품목별 분류 선택 시: 해당 단품 제외하고 나머지만 인쇄
+  const selProd = window._clsFilterProd || '';
+  let directOrders = allDirect;
+  if (selProd) {
+    const excludeNos = new Set(
+      allDirect.filter(o => allDirect.filter(x => x.no === o.no).length === 1 && o.prod === selProd).map(o => o.no)
+    );
+    directOrders = allDirect.filter(o => !excludeNos.has(o.no));
+    if (!directOrders.length) { alert('선택한 단품을 제외하면 인쇄할 주문이 없습니다.'); return; }
+  }
   const { groups } = buildDGroups(directOrders);
 
   let rows = '';
@@ -883,6 +991,48 @@ td{padding:6px 8px;border-left:1px solid #ccc;border-right:1px solid #ccc;border
 }
 
 
+
+
+/* ══ 통계 탭 ══ */
+function renderStat() {
+  const e = document.getElementById('stat-empty'), b = document.getElementById('stat-body');
+  if (!orders.length) { e.style.display = 'flex'; b.style.display = 'none'; return; }
+  e.style.display = 'none'; b.style.display = 'block';
+
+  // 상품별 집계
+  const prodMap = {};
+  orders.forEach(o => {
+    const key = o.prod;
+    if (!prodMap[key]) prodMap[key] = { prod: o.prod, count: 0, qty: 0, types: new Set() };
+    prodMap[key].count += 1;
+    prodMap[key].qty += parseInt(o.qty || 1);
+    prodMap[key].types.add(o.type === '위탁' ? (o.vendor || '위탁') : '직접배송');
+  });
+
+  // 총 수량 기준 내림차순 정렬
+  const sorted = Object.values(prodMap).sort((a, b) => b.qty - a.qty);
+  const totalQty = sorted.reduce((a, v) => a + v.qty, 0);
+
+  document.getElementById('stat-sub').textContent =
+    `업로드된 주문 기준 · 전체 ${orders.length}개 주문행`;
+  document.getElementById('st-total').textContent = orders.length;
+  document.getElementById('st-qty').textContent = totalQty;
+  document.getElementById('st-kinds').textContent = sorted.length;
+
+  const tb = document.getElementById('stat-tb');
+  tb.innerHTML = sorted.map((item, i) => {
+    const typeStr = [...item.types].join(' / ');
+    const isVendor = [...item.types].every(t => t !== '직접배송');
+    const typeColor = isVendor ? 'color:#92400E' : 'color:#166534';
+    return `<tr>
+      <td style="text-align:center;font-size:12px;color:#A09E97">${i + 1}</td>
+      <td style="font-size:13px">${item.prod}</td>
+      <td style="text-align:center;font-weight:500">${item.count}</td>
+      <td style="text-align:center;font-size:15px;font-weight:700;${item.qty >= 5 ? 'color:#1A6FD4' : ''}">${item.qty}</td>
+      <td style="font-size:12px;${typeColor}">${typeStr}</td>
+    </tr>`;
+  }).join('');
+}
 
 /* ══ 발송처리 탭 ══ */
 let shipRows = [];
